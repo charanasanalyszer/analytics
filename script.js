@@ -677,14 +677,23 @@ function clearSession() {
 }
 
 function finishLogin(school) {
-  renderDashboard(); populateAllDropdowns();
-  renderStudents(); renderTeachers(); renderSubjects();
-  renderClasses(); renderStreams(); renderExamList();
-  populateExamDropdowns(); renderMsgLog();
-  renderAdminList(); loadSettings();
-  populateGSDropdowns(); renderGradingSystemsTab();
-  setExamCategory('regular'); hookReportFeeAutoFill();
-  renderExamSubjectCheckboxes([]);
+  try { renderDashboard(); } catch(e) { console.warn('renderDashboard', e); }
+  try { populateAllDropdowns(); } catch(e) { console.warn('populateAllDropdowns', e); }
+  try { renderStudents(); } catch(e) { console.warn('renderStudents', e); }
+  try { renderTeachers(); } catch(e) { console.warn('renderTeachers', e); }
+  try { renderSubjects(); } catch(e) { console.warn('renderSubjects', e); }
+  try { renderClasses(); } catch(e) { console.warn('renderClasses', e); }
+  try { renderStreams(); } catch(e) { console.warn('renderStreams', e); }
+  try { renderExamList(); } catch(e) { console.warn('renderExamList', e); }
+  try { populateExamDropdowns(); } catch(e) { console.warn('populateExamDropdowns', e); }
+  try { renderMsgLog(); } catch(e) { console.warn('renderMsgLog', e); }
+  try { renderAdminList(); } catch(e) { console.warn('renderAdminList', e); }
+  try { loadSettings(); } catch(e) { console.warn('loadSettings', e); }
+  try { populateGSDropdowns(); } catch(e) { console.warn('populateGSDropdowns', e); }
+  try { renderGradingSystemsTab(); } catch(e) { console.warn('renderGradingSystemsTab', e); }
+  try { setExamCategory('regular'); } catch(e) { console.warn('setExamCategory', e); }
+  try { hookReportFeeAutoFill(); } catch(e) { console.warn('hookReportFeeAutoFill', e); }
+  try { renderExamSubjectCheckboxes([]); } catch(e) { console.warn('renderExamSubjectCheckboxes', e); }
   const smsCEl = document.getElementById('smsCredits'); if (smsCEl) smsCEl.textContent = smsCredits;
   document.getElementById('loginScreen').style.display = 'none';
   saveSession();
@@ -712,8 +721,8 @@ function togglePw() {
   f.type = f.type === 'password' ? 'text' : 'password';
 }
 function launchApp() {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('app').style.display = 'flex';
+  try { document.getElementById('loginScreen').style.display = 'none'; } catch(e) {}
+  try { document.getElementById('app').style.display = 'flex'; } catch(e) {}
   document.getElementById('tbUser').textContent = '👤 ' + currentUser.name;
 
   // Role-based: hide analyse if no rights (full check done in applyRoleBasedUI)
@@ -1864,7 +1873,72 @@ function buildMeritTableHTML(scored, examId, showStreamCol) {
 
 // renderMeritList — full implementation is at the bottom of this file (overrides this stub)
 
-function printMeritList() { window.print(); }
+function printMeritList() {
+  const container = document.getElementById('meritListWrap');
+  if (!container || !container.innerHTML.trim() || container.querySelector('p[style]')) {
+    showToast('Generate the merit list first before printing.', 'warning'); return;
+  }
+  const examId = document.getElementById('mlExam').value;
+  const exam   = exams.find(e => e.id === examId);
+  const sch    = settings;
+  const win = window.open('', '_blank', 'width=1000,height=750');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<title>Merit List \u2014 ${exam?.name || 'Exam'}</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --primary:#1a6fb5; --primary-lt:#dbeafe; --primary-dk:#1558a0;
+    --secondary:#16a34a; --secondary-dk:#15803d; --secondary-lt:#dcfce7;
+    --red:#dc2626; --red-lt:#fee2e2;
+    --purple:#7c3aed; --purple-lt:#f3e8ff;
+    --amber:#d97706; --amber-lt:#fef3c7;
+    --muted:#64748b; --border:#c0d5e8;
+    --font:'Plus Jakarta Sans',Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);color:#000;background:#fff;padding:12mm 14mm;font-size:9pt}
+  .print-header{text-align:center;border-bottom:3px solid var(--primary);padding-bottom:8px;margin-bottom:14px}
+  .print-header h1{font-size:15pt;font-weight:800;color:var(--primary)}
+  .print-header p{font-size:8.5pt;color:#444;margin-top:2px}
+  .print-header .exam-title{font-size:11pt;font-weight:700;color:var(--secondary);margin-top:5px}
+  h3{font-size:11pt;font-weight:700;color:var(--primary);margin:14px 0 6px}
+  h4{font-size:10pt;font-weight:700;color:var(--primary);margin:10px 0 5px}
+  table{width:100%;border-collapse:collapse;font-size:8.5pt}
+  thead tr th{background:var(--primary);color:#fff;padding:5px 7px;text-align:left;font-weight:700;font-size:8pt}
+  tbody tr td{border:1px solid var(--border);padding:4px 7px}
+  tbody tr:nth-child(even) td{background:#f0f7ff}
+  .tbl-wrap{overflow:visible;border:none}
+  [style*="page-break-before"]{page-break-before:always}
+  /* Badge classes used by subject analysis */
+  .badge{display:inline-block;padding:.15rem .5rem;border-radius:999px;font-size:.72rem;font-weight:700;letter-spacing:.02em}
+  .b-blue{background:var(--primary-lt);color:var(--primary)}
+  .b-green{background:var(--secondary-lt);color:var(--secondary-dk)}
+  .b-red{background:var(--red-lt);color:var(--red)}
+  .b-purple{background:var(--purple-lt);color:var(--purple)}
+  .b-amber,.b-yellow{background:var(--amber-lt);color:var(--amber)}
+  button.print-btn{display:block;margin:1rem auto;padding:.5rem 1.5rem;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.9rem;font-family:var(--font)}
+  @media print{
+    body{padding:8mm 10mm}
+    .no-print{display:none!important}
+    [style*="page-break-before"]{page-break-before:always}
+    table{font-size:8pt}
+  }
+</style>
+</head><body>
+<div class="print-header">
+  <h1>${sch.schoolName || 'School Name'}</h1>
+  <p>${sch.address || ''}${sch.phone ? ' &nbsp;|&nbsp; Tel: ' + sch.phone : ''}${sch.email ? ' &nbsp;|&nbsp; ' + sch.email : ''}</p>
+  <div class="exam-title">MERIT LIST &mdash; ${exam?.name || ''}&nbsp;&nbsp;${exam?.term || ''}&nbsp;${exam?.year || ''}</div>
+  <p style="font-size:7.5pt;color:#888;margin-top:4px">Printed: ${new Date().toLocaleDateString()}</p>
+</div>
+<button class="print-btn no-print" onclick="window.print()">🖨 Print</button>
+${container.innerHTML}
+<script>
+  document.querySelectorAll('.card-toolbar,.btn,.btn-row-compact,.btn-sm,.btn-outline,.btn-primary,.btn-success').forEach(el=>el.remove());
+<\/script>
+</body></html>`);
+  win.document.close();
+}
 
 function exportMeritExcel() {
   const examId = document.getElementById('mlExam').value; if (!examId) { showToast('Select an exam','error'); return; }
@@ -3186,7 +3260,7 @@ function buildReportHTML(data, ctRemarks, principalRemarks, nextOpen, schoolClos
   <div class="report-form">
     <!-- HEADER -->
     <div class="rf-header">
-      <div class="rf-logo">CA</div>
+      <div class="rf-logo">${(s.schoolName||'CA').split(' ').map(w=>w[0]).join('').substring(0,3).toUpperCase()}</div>
       <div class="rf-school-info">
         <h2>${s.schoolName||'School Name'}</h2>
         <p>${s.address||''} ${s.phone?'| Tel: '+s.phone:''} ${s.email?'| '+s.email:''}</p>
@@ -3413,6 +3487,14 @@ function generateReport() {
   }).join('');
 
   showToast(`${stuList.length} report(s) generated ✓`,'success');
+  // Inject a print action bar above the report previews
+  const printBar = document.createElement('div');
+  printBar.id = 'reportPrintBar';
+  printBar.style.cssText = 'display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;flex-wrap:wrap';
+  printBar.innerHTML = `<span style="font-weight:600;font-size:.9rem;flex:1">${stuList.length} report${stuList.length>1?'s':''} generated</span>
+    <button class="btn btn-outline btn-sm" onclick="printReportForms()">🖨 Print</button>
+    <button class="btn btn-success btn-sm" onclick="downloadAllReportsPDF()">⬇ Download PDF</button>`;
+  area.insertBefore(printBar, area.firstChild);
   area.scrollIntoView({behavior:'smooth'});
   // Draw trend charts after DOM settles
   setTimeout(() => {
@@ -3439,6 +3521,73 @@ function generateReport() {
 }
 
 function previewReport() { generateReport(); }
+
+function printReportForms() {
+  const area = document.getElementById('reportPreviewArea');
+  if (!area || !area.innerHTML.trim()) {
+    showToast('Generate reports first before printing.', 'warning'); return;
+  }
+  const sch = settings;
+  const win = window.open('', '_blank', 'width=900,height=750');
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = area.innerHTML;
+  // Remove the action bar injected by generateReport
+  const bar = tempDiv.querySelector('#reportPrintBar');
+  if (bar) bar.remove();
+  // Convert chart canvases to images so they appear in the new window
+  area.querySelectorAll('canvas').forEach(canvas => {
+    try {
+      const img = document.createElement('img');
+      img.src = canvas.toDataURL('image/png');
+      img.style.width = '100%'; img.style.maxHeight = '120px';
+      const clone = tempDiv.querySelector('#' + canvas.id);
+      if (clone) clone.replaceWith(img);
+    } catch(e) {}
+  });
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<title>Report Forms \u2014 ${sch.schoolName || 'School'}</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#000;background:#fff}
+  .report-form{background:#fff;color:#000;width:210mm;max-width:100%;margin:0 auto 2rem;padding:14mm 14mm 12mm;border:1px solid #ccc;border-radius:4px;font-size:10pt;line-height:1.5;page-break-after:always}
+  .rf-header{display:flex;align-items:center;gap:16px;border-bottom:3px solid #7c3aed;padding-bottom:10px;margin-bottom:12px}
+  .rf-logo{width:60px;height:60px;background:linear-gradient(135deg,#1a6fb5,#16a34a);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.2rem;color:#fff;flex-shrink:0}
+  .rf-school-info h2{font-size:13pt;font-weight:800;color:#1a6fb5;line-height:1.2}
+  .rf-school-info p{font-size:8.5pt;color:#444}
+  .rf-section{margin-bottom:8px}
+  .rf-section-title{background:#7c3aed;color:#fff;font-weight:700;font-size:9pt;padding:4px 10px;border-radius:3px 3px 0 0;text-transform:uppercase;letter-spacing:.04em}
+  .rf-section-body{border:1.5px solid #1a6fb5;border-top:none;border-radius:0 0 3px 3px;padding:8px 10px}
+  .rf-info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .rf-info-item{display:flex;flex-direction:column}
+  .rf-info-label{font-size:7.5pt;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .rf-info-value{font-size:9.5pt;font-weight:600;color:#000;border-bottom:1px solid #999;padding-bottom:1px}
+  .rf-marks-table{width:100%;border-collapse:collapse;margin:0}
+  .rf-marks-table th{background:#f0f7ff;border:1.5px solid #a0bdd8;padding:4px 7px;font-size:8.5pt;font-weight:700;text-align:left;color:#1a6fb5}
+  .rf-marks-table td{border:1.5px solid #c0d5e8;padding:4px 7px;font-size:9pt}
+  .rf-marks-table tr:nth-child(even) td{background:#f8fbff}
+  .rf-marks-table .total-row td{background:#dbeafe;font-weight:700;border-top:2px solid #1a6fb5}
+  .rf-bottom{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+  .rf-remarks-box{border:1.5px solid #a0bdd8;border-radius:4px;padding:7px 10px;min-height:55px}
+  .rf-remarks-label{font-size:8pt;font-weight:700;color:#1a6fb5;margin-bottom:4px}
+  .rf-remarks-text{font-size:9pt}
+  .rf-sig-line{border-top:1px solid #666;margin-top:18px;padding-top:3px;font-size:8pt;color:#555}
+  .rf-footer{border-top:2px solid #16a34a;margin-top:10px;padding-top:6px;display:flex;justify-content:space-between;align-items:center;font-size:8pt;color:#555}
+  .rf-school-info h2{font-size:13pt;font-weight:800;color:#1a6fb5;line-height:1.2}
+  .rf-school-info p{font-size:8.5pt;color:#444}
+  .rf-fees-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+  button.print-btn{display:block;margin:1rem auto;padding:.5rem 1.5rem;background:#1a6fb5;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.9rem;font-family:inherit}
+  @media print{
+    .report-form{border:none!important;box-shadow:none!important;page-break-after:always}
+    .no-print{display:none!important}
+  }
+</style>
+</head><body>
+<button class="print-btn no-print" onclick="window.print()">Print All Reports</button>
+${tempDiv.innerHTML}
+</body></html>`);
+  win.document.close();
+}
 
 // ═══════════════ MESSAGING ═══════════════
 function loadMsgRecipients() {
